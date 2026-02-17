@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" stop-color="#FFD700" />
+<stop offset="25%" stop-color="#B8860B" />
+<stop offset="50%" stop-color="#FFD700" />
+<stop offset="75%" stop-color="#B8860B" />
+<stop offset="100%" stop-color="#FFD700" />
+</linearGradient>
+<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+<feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="black" flood-opacity="0.5"/>
+</filter>
+</defs>
+<path d="M40 40 L160 472 L256 160 L352 472 L472 40 L410 40 L352 320 L280 80 L232 80 L160 320 L102 40 Z" fill="url(#goldGradient)" stroke="black" stroke-width="2" filter="url(#shadow)"/>
+<path d="M256 160 L352 472 L320 472 L256 220 L192 472 L160 472 Z" fill="url(#goldGradient)" opacity="0.8"/>
+</svg>
