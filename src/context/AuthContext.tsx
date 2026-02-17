@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, createContext, useContext } from 'react';
@@ -59,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             hasVoted: userData.hasVoted || {}
                         });
                     } else {
-                        // If auth exists but no doc, we might need to wait for login() to create it
-                        // or create a default one if it's a direct browser refresh
                         setUser({
                             uid: fbUser.uid,
                             username: 'Guest',
@@ -90,17 +89,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userData = {
                 username,
                 role,
-                hasVoted: {} // Starts empty for new anonymous session
+                hasVoted: {} 
             };
 
-            // Check if user already has a doc (e.g. they were logged in before)
             const userRef = doc(db, 'users', fbUser.uid);
             const userDoc = await getDoc(userRef);
 
             if (!userDoc.exists()) {
                 await setDoc(userRef, userData);
             } else {
-                // Update profile but keep votes
                 await setDoc(userRef, { username, role }, { merge: true });
             }
         } catch (error) {
@@ -119,6 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const vote = async (categoryId: string, candidateId: string) => {
         if (!user) return;
 
+        // PROTECCIÓN: Evitar múltiples votos en la misma categoría
+        if (user.hasVoted && user.hasVoted[categoryId]) {
+            console.warn("User has already voted in this category");
+            return;
+        }
+
         // 1. Update User's hasVoted in Firestore
         const userRef = doc(db, 'users', user.uid);
         await setDoc(userRef, {
@@ -128,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         }, { merge: true });
 
-        // 2. Record vote in global votes collection for Admin/Results
+        // 2. Record vote in global votes collection
         await addDoc(collection(db, 'votes'), {
             categoryId,
             candidateId,
@@ -137,9 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             timestamp: serverTimestamp(),
             ip: 'Handled by Firebase'
         });
-
-        // 3. Also maintain the older 'wwaa_all_votes' style if needed, 
-        // but it's better to just use the new 'votes' collection.
     };
 
     return (
