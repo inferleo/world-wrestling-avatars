@@ -14,18 +14,18 @@ import {
     query,
     orderBy
 } from 'firebase/firestore';
-import { uploadFile } from '@/lib/storage';
+
 
 interface DataContextType {
     wrestlers: Wrestler[];
     awards: AwardCategory[];
     siteConfig: SiteConfig;
-    addWrestler: (wrestler: Wrestler, imageFile?: File) => Promise<void>;
-    updateWrestler: (updatedWrestler: Wrestler, imageFile?: File) => Promise<void>;
+    addWrestler: (wrestler: Wrestler) => Promise<void>;
+    updateWrestler: (updatedWrestler: Wrestler) => Promise<void>;
     deleteWrestler: (id: string) => Promise<void>;
-    updateSiteConfig: (config: SiteConfig, logoFile?: File) => Promise<void>;
+    updateSiteConfig: (config: SiteConfig) => Promise<void>;
     news: NewsItem[];
-    addNews: (item: NewsItem, imageFile?: File) => Promise<void>;
+    addNews: (item: NewsItem) => Promise<void>;
     deleteNews: (id: string) => Promise<void>;
     addAward: (award: AwardCategory) => Promise<void>;
     updateAward: (award: AwardCategory) => Promise<void>;
@@ -125,38 +125,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    const updateSiteConfig = async (newConfig: SiteConfig, logoFile?: File) => {
-        let finalConfig = { ...newConfig };
-
-        if (logoFile) {
-            const logoUrl = await uploadFile(logoFile, `site/logo_${Date.now()}`);
-            finalConfig.logoImage = logoUrl;
-        }
-
-        setSiteConfig(finalConfig);
-        await setDoc(doc(db, 'siteConfig', 'config'), finalConfig);
+    const updateSiteConfig = async (newConfig: SiteConfig) => {
+        setSiteConfig(newConfig);
+        await setDoc(doc(db, 'siteConfig', 'config'), newConfig);
     };
 
-    const addWrestler = async (wrestler: Wrestler, imageFile?: File) => {
-        let finalWrestler = { ...wrestler };
-
-        if (imageFile) {
-            const imageUrl = await uploadFile(imageFile, `superstars/${wrestler.id || Date.now()}`);
-            finalWrestler.image = imageUrl;
-        }
-
-        await setDoc(doc(db, 'wrestlers', finalWrestler.id), finalWrestler);
+    const addWrestler = async (wrestler: Wrestler) => {
+        await setDoc(doc(db, 'wrestlers', wrestler.id), wrestler);
     };
 
-    const updateWrestler = async (updatedWrestler: Wrestler, imageFile?: File) => {
-        let finalWrestler = { ...updatedWrestler };
-
-        if (imageFile) {
-            const imageUrl = await uploadFile(imageFile, `superstars/${updatedWrestler.id}`);
-            finalWrestler.image = imageUrl;
-        }
-
-        await setDoc(doc(db, 'wrestlers', finalWrestler.id), finalWrestler);
+    const updateWrestler = async (updatedWrestler: Wrestler) => {
+        await setDoc(doc(db, 'wrestlers', updatedWrestler.id), updatedWrestler);
     };
 
     const deleteWrestler = async (id: string) => {
@@ -183,15 +162,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await deleteDoc(doc(db, 'awards', id));
     };
 
-    const addNews = async (item: NewsItem, imageFile?: File) => {
-        let finalNews = { ...item };
-
-        if (imageFile) {
-            const imageUrl = await uploadFile(imageFile, `news/${item.id || Date.now()}`);
-            finalNews.image = imageUrl;
-        }
-
-        await setDoc(doc(db, 'news', finalNews.id), finalNews);
+    const addNews = async (item: NewsItem) => {
+        await setDoc(doc(db, 'news', item.id), item);
     };
 
     const deleteNews = async (id: string) => {

@@ -6,7 +6,7 @@ service cloud.firestore {
     // Helper function to check if user is an admin
     function isAdmin() {
       return request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Site configuration and content - Read by anyone, Write by admin
@@ -42,5 +42,11 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow delete: if isAdmin();
     }
+
+    // Diagnostic test collection
+    match /test_connection/{testId} {
+      allow read, write: if request.auth != null;
+    }
+
   }
 }

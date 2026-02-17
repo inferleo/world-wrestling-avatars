@@ -24,15 +24,19 @@ import {
     query,
     orderBy,
     doc,
-    deleteDoc
+    deleteDoc,
+    getDoc,
+    setDoc
 } from 'firebase/firestore';
+
 
 export default function AdminPage() {
     const { user } = useAuth();
     const { wrestlers, addWrestler, updateWrestler, deleteWrestler, awards, siteConfig, updateSiteConfig, news, addNews, deleteNews, addAward, deleteAward, updateAward } = useData();
     const router = useRouter();
     const [votes, setVotes] = useState<VoteRecord[]>([]);
-    const [activeTab, setActiveTab] = useState<'stats' | 'roster' | 'content' | 'news' | 'awards'>('stats');
+    const [activeTab, setActiveTab] = useState<'stats' | 'roster' | 'content' | 'news' | 'awards' | 'diagnostics'>('stats');
+
 
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -81,6 +85,23 @@ export default function AdminPage() {
         }
     };
 
+    const forceAdminRole = async () => {
+        if (!user || !user.uid) {
+            alert('No user logged in.');
+            return;
+        }
+        if (confirm(`Are you sure you want to force user ${user.username} (${user.uid}) to 'admin' role? This will update their role in Firestore.`)) {
+            try {
+                const userRef = doc(db, 'users', user.uid);
+                await setDoc(userRef, { role: 'admin' }, { merge: true });
+                alert(`User ${user.username} role updated to 'admin' successfully! You might need to re-login or refresh for changes to take full effect.`);
+            } catch (error) {
+                console.error("Error forcing admin role:", error);
+                alert("Failed to force admin role. Check console for details.");
+            }
+        }
+    };
+
     const handleEditWrestler = (wrestler?: Wrestler) => {
         if (wrestler) {
             setEditingWrestler({ ...wrestler });
@@ -108,17 +129,26 @@ export default function AdminPage() {
         }
 
         try {
+            // Generate slug if missing or name changed
+            const slug = editingWrestler.name?.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') || '';
+            const wrestlerToSave = {
+                ...editingWrestler,
+                slug: slug,
+            } as Wrestler;
+
             if (isNewWrestler) {
-                await addWrestler(editingWrestler as Wrestler, wrestlerFile || undefined);
+                await addWrestler(wrestlerToSave);
             } else {
-                await updateWrestler(editingWrestler as Wrestler, wrestlerFile || undefined);
+                await updateWrestler(wrestlerToSave);
             }
+            alert("Superstar successfully saved to Firestore!");
             setIsEditModalOpen(false);
-            setWrestlerFile(null);
-        } catch (error) {
-            console.error("Failed to save wrestler:", error);
-            alert("Error saving superstar. Please check your connection and file size.");
+        } catch (error: any) {
+            console.error("CRITICAL: Failed to save wrestler to Firestore:", error);
+            const errorMsg = error.code ? `[${error.code}] ${error.message}` : error.message;
+            alert("Error saving superstar: " + (errorMsg || "Unknown error"));
         }
+
     };
 
     const handleDeleteWrestler = (id: string) => {
@@ -140,15 +170,16 @@ export default function AdminPage() {
                 content: newsForm.content,
                 image: newsForm.image || 'https://via.placeholder.com/600x400?text=News',
                 date: new Date().toISOString()
-            }, newsFile || undefined);
+            });
 
             setNewsForm({ title: '', content: '', image: '' });
-            setNewsFile(null);
-            alert('News published!');
-        } catch (error) {
-            console.error("Failed to save news:", error);
-            alert("Error publishing news.");
+            alert('News article successfully published!');
+        } catch (error: any) {
+            console.error("CRITICAL: Failed to save news:", error);
+            const errorMsg = error.code ? `[${error.code}] ${error.message}` : error.message;
+            alert("Error publishing news: " + (errorMsg || "Unknown error"));
         }
+
     };
 
     const handleAddAward = () => {
@@ -196,8 +227,9 @@ export default function AdminPage() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-white uppercase tracking-tight font-oswald">Admin Dashboard</h1>
-                            <p className="text-neutral-400">Manage voting data and system status.</p>
+                            <p className="text-neutral-400">Manage voting data and system status. <span className="text-red-500 font-bold ml-2">Logged as: {user?.username} ({user?.role})</span></p>
                         </div>
+
                     </div>
 
                     <div className="flex bg-neutral-900 rounded-lg p-1">
@@ -231,7 +263,14 @@ export default function AdminPage() {
                         >
                             Voting & Awards
                         </button>
+                        <button
+                            onClick={() => setActiveTab('diagnostics')}
+                            className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'diagnostics' ? 'bg-red-900 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                        >
+                            Diagnostics
+                        </button>
                     </div>
+
                 </div>
 
                 {activeTab === 'stats' ? (
@@ -366,12 +405,11 @@ export default function AdminPage() {
                             <button
                                 onClick={async () => {
                                     try {
-                                        await updateSiteConfig(configForm, logoFile || undefined);
-                                        setLogoFile(null);
+                                        await updateSiteConfig(configForm);
                                         alert('Site configuration saved!');
-                                    } catch (error) {
+                                    } catch (error: any) {
                                         console.error("Failed to save config:", error);
-                                        alert("Error saving configuration.");
+                                        alert("Error saving configuration: " + (error.message || "Unknown error"));
                                     }
                                 }}
                                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm transition-colors font-bold uppercase"
@@ -401,11 +439,10 @@ export default function AdminPage() {
                                                     onChange={(e) => {
                                                         const file = e.target.files?.[0];
                                                         if (file) {
-                                                            if (file.size > 1024 * 1024 * 2) { // 2MB limit for storage
-                                                                alert("File size too large! Please upload images under 2MB.");
+                                                            if (file.size > 1024 * 500) { // 500KB limit
+                                                                alert("File size too large! Please upload images under 500KB.");
                                                                 return;
                                                             }
-                                                            setLogoFile(file);
                                                             const reader = new FileReader();
                                                             reader.onloadend = () => {
                                                                 setConfigForm({ ...configForm, logoImage: reader.result as string });
@@ -540,11 +577,10 @@ export default function AdminPage() {
                                                 onChange={(e) => {
                                                     const file = e.target.files?.[0];
                                                     if (file) {
-                                                        if (file.size > 1024 * 1024 * 5) { // 5MB limit
-                                                            alert("File size too large! Please upload images under 5MB.");
+                                                        if (file.size > 1024 * 500) { // 500KB limit
+                                                            alert("File size too large! Please upload images under 500KB.");
                                                             return;
                                                         }
-                                                        setWrestlerFile(file);
                                                         const reader = new FileReader();
                                                         reader.onloadend = () => {
                                                             setEditingWrestler({ ...editingWrestler, image: reader.result as string });
@@ -636,11 +672,10 @@ export default function AdminPage() {
                                                 onChange={(e) => {
                                                     const file = e.target.files?.[0];
                                                     if (file) {
-                                                        if (file.size > 1024 * 1024 * 5) {
-                                                            alert("File size too large! Please upload images under 5MB.");
+                                                        if (file.size > 1024 * 500) { // 500KB limit
+                                                            alert("File size too large! Please upload images under 500KB.");
                                                             return;
                                                         }
-                                                        setNewsFile(file);
                                                         const reader = new FileReader();
                                                         reader.onloadend = () => {
                                                             setNewsForm({ ...newsForm, image: reader.result as string });
@@ -822,7 +857,90 @@ export default function AdminPage() {
                         </div>
                     </div>
                 )}
+                {activeTab === 'diagnostics' && (
+                    <div className="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden p-8">
+                        <div className="flex items-center gap-4 mb-8">
+                            <ShieldAlert className="text-red-500 w-10 h-10" />
+                            <h2 className="text-2xl font-black uppercase font-oswald">System Diagnostics</h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="bg-neutral-950 p-6 rounded-lg border border-neutral-800">
+                                <h3 className="font-bold text-lg mb-4 text-white uppercase border-b border-neutral-800 pb-2">Session Info</h3>
+                                <ul className="space-y-2 text-sm">
+                                    <li className="flex justify-between"><span className="text-neutral-500">Local UID:</span> <code className="text-blue-400">{user?.uid}</code></li>
+                                    <li className="flex justify-between"><span className="text-neutral-500">Local Role:</span> <code className="text-red-500 font-bold">{user?.role}</code></li>
+                                    <li className="flex justify-between"><span className="text-neutral-500">Username:</span> <code className="text-white">{user?.username}</code></li>
+                                </ul>
+                            </div>
+
+                            <div className="bg-neutral-950 p-6 rounded-lg border border-neutral-800">
+                                <h3 className="font-bold text-lg mb-4 text-white uppercase border-b border-neutral-800 pb-2">Actions</h3>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const docRef = doc(db, 'users', user?.uid || '');
+                                            const snap = await getDoc(docRef);
+                                            if (snap.exists()) {
+                                                const d = snap.data();
+                                                alert(`Firestore Profile Found!\nUID: ${snap.id}\nRole at DB: [${d.role}]\nUsername at DB: [${d.username}]\nSession Role: [${user?.role}]`);
+                                            } else {
+                                                alert(`CRITICAL: User document NOT FOUND!\nExpected path: users/${user?.uid}\n\nThis means your login didn't create the profile in Firestore.`);
+                                            }
+
+                                        } catch (e: any) {
+                                            alert(`Error checking profile: ${e.message}`);
+                                        }
+                                    }}
+                                    className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2 rounded mb-4"
+                                >
+                                    Check Firestore Role
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const testId = Date.now().toString();
+                                            await setDoc(doc(db, 'test_connection', testId), { ok: true, timestamp: new Date().toISOString(), user: user?.uid });
+                                            alert("Success writing to test collection!");
+                                        } catch (e: any) {
+                                            alert(`FAILED writing to test: ${e.message}\n\nNote: This might fail if you haven't deployed the new rules yet.`);
+                                        }
+                                    }}
+                                    className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2 rounded mb-4"
+                                >
+                                    Test Write Permission
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            if (!user?.uid) return;
+                                            const docRef = doc(db, 'users', user.uid);
+                                            await setDoc(docRef, { role: 'admin', username: user.username }, { merge: true });
+                                            alert("Success! Your role has been FORCED to 'admin' in the database.");
+                                        } catch (e: any) {
+                                            alert(`FAILED to force admin role: ${e.message}`);
+                                        }
+                                    }}
+                                    className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded"
+                                >
+                                    Force Admin Role in DB
+                                </button>
+                            </div>
+                        </div>
+
+
+                        <div className="mt-8 p-4 bg-black rounded border border-neutral-800">
+                            <h4 className="font-bold text-red-500 mb-2 uppercase text-xs">Instrucciones de Depuración</h4>
+                            <p className="text-neutral-400 text-sm">
+                                1. Presiona <strong>Check Firestore Role</strong>. Si dice que no existe o el rol no es 'admin', ahí está el error.<br />
+                                2. Presiona <strong>Test Write Permission</strong>. Esto confirmará si Firestore permite escrituras desde tu sesión.<br />
+                                3. Si ambos dicen OK pero las fotos fallan, intenta guardar un luchador <strong>SIN FOTO</strong>. Si funciona sin foto, el problema es el tamaño de la imagen.
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+

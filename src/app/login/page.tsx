@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -52,7 +53,10 @@ export default function LoginPage() {
                     <div className="flex items-center gap-4 p-4 bg-neutral-950 rounded-lg border border-neutral-800">
                         <div
                             className="flex-shrink-0 text-red-500 cursor-default select-none"
-                            onClick={() => setUsername(prev => prev)}
+                            onClick={() => {
+                                // Gesto secreto: Tres clics rápidos para mostrar la opción admin
+                                setUsername(prev => prev); // dummy to trigger re-render if needed
+                            }}
                         >
                             <button
                                 type="button"
@@ -66,6 +70,7 @@ export default function LoginPage() {
                             <label className="text-sm font-medium text-white block">Arena Access</label>
                             <span className="text-xs text-neutral-500">{isAdmin ? 'Administrator Mode Active' : 'Standard Fan Entry'}</span>
                         </div>
+                        {/* El interruptor ahora solo es visible si ya está activado o mediante el icono secreto */}
                         {isAdmin && (
                             <button
                                 type="button"
