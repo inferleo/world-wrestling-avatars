@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -51,32 +50,43 @@ export default function LoginPage() {
                     </div>
 
                     <div className="flex items-center gap-4 p-4 bg-neutral-950 rounded-lg border border-neutral-800">
-                        <div className="flex-shrink-0 text-red-500">
-                            {isAdmin ? <Shield size={24} /> : <User size={24} />}
+                        <div
+                            className="flex-shrink-0 text-red-500 cursor-default select-none"
+                            onClick={() => setUsername(prev => prev)}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setIsAdmin(!isAdmin)}
+                                className="focus:outline-none"
+                            >
+                                {isAdmin ? <Shield size={24} /> : <User size={24} />}
+                            </button>
                         </div>
                         <div className="flex-grow">
-                            <label className="text-sm font-medium text-white block">Access Level</label>
-                            <span className="text-xs text-neutral-500">{isAdmin ? 'Administrator Privileges' : 'Standard Fan Access'}</span>
+                            <label className="text-sm font-medium text-white block">Arena Access</label>
+                            <span className="text-xs text-neutral-500">{isAdmin ? 'Administrator Mode Active' : 'Standard Fan Entry'}</span>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setIsAdmin(!isAdmin)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isAdmin ? 'bg-red-600' : 'bg-neutral-700'}`}
-                        >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAdmin ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setIsAdmin(false)}
+                                className="text-xs text-red-500 hover:text-red-400 underline uppercase tracking-tighter"
+                            >
+                                Disable
+                            </button>
+                        )}
                     </div>
 
                     {isAdmin && (
                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            <label htmlFor="secretKey" className="block text-sm font-medium text-red-500 mb-1">Admin Secret Key</label>
+                            <label htmlFor="secretKey" className="block text-sm font-medium text-red-500 mb-1">Passkey</label>
                             <input
                                 type="password"
                                 id="secretKey"
                                 value={secretKey}
                                 onChange={(e) => setSecretKey(e.target.value)}
                                 className="w-full px-4 py-3 bg-neutral-950 border border-red-900/50 rounded-lg text-white focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all placeholder:text-neutral-600"
-                                placeholder="Enter secret key..."
+                                placeholder="Enter access code..."
                             />
                         </div>
                     )}
@@ -90,8 +100,7 @@ export default function LoginPage() {
                 </form>
 
                 <div className="mt-6 text-center text-xs text-neutral-600">
-                    <p>Standard Access: No password required.</p>
-                    <p>Admin Access: Toggle ON, key is <strong className="text-red-500">admin123</strong></p>
+                    <p>Standard Access: No credentials required.</p>
                 </div>
             </div>
         </div>
